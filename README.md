@@ -9,7 +9,7 @@ The scaffold intentionally separates the project into:
 - ML Service: Python + FastAPI + scikit-learn + XGBoost + Pandas
 - Database: PostgreSQL schema definitions via Prisma
 
-The goal is not to implement the full business system yet. Instead, it implements a clean integration blueprint with placeholders, mock data, typed API contracts, health checks, and module boundaries so the team can expand without mixing responsibilities.
+The repository has a Prisma-backed backend and FastAPI adapter. Use `DEMO_MODE=true` only for an isolated local UI/demo without PostgreSQL; production routes require the configured database.
 
 ## Monorepo structure
 
@@ -64,6 +64,34 @@ uvicorn app.main:app --reload --port 8000
 
 Each service contains a `.env.example` file. Copy it to `.env` and set the values for your local environment.
 
+### Backend database setup
+
+1. Copy `backend/.env.example` to `backend/.env`.
+2. Set `DATABASE_URL` to a Neon development/test connection string (include the SSL parameters provided by Neon).
+3. Only after verifying the database target is not production, set `DATABASE_ENV=development`, `NODE_ENV=development`, and `DATABASE_TARGET_CONFIRMATION=I_HAVE_VERIFIED_THIS_IS_NOT_PRODUCTION`.
+4. From PowerShell, run:
+
+```powershell
+npm --workspace backend run prisma:validate
+npm --workspace backend run prisma:generate
+npm --workspace backend run prisma:migrate
+npm --workspace backend run prisma:seed
+```
+
+The migration command uses `prisma migrate deploy` and does not reset or drop data. The checked-in initial migration is intended for an empty database. If a Neon database already contains tables, do not run the initial migration blindly: first compare its schema with `backend/prisma/schema.prisma` and baseline only after confirming they match. No live database migration or seed was run as part of the code audit.
+
+The seed uses namespaced `demo-*` records, upserts them without updating existing records, and runs in a transaction. Migration/seed scripts require explicit environment labels and the non-production confirmation value; this confirmation is an operator assertion, not automatic proof of the target identity.
+
+### Backend integration tests
+
+Integration tests make real database writes and clean up only records with their unique integration-test IDs. Use a disposable PostgreSQL database, set `DATABASE_ENV=test`, `NODE_ENV=test`, `DATABASE_TARGET_CONFIRMATION=I_HAVE_VERIFIED_THIS_IS_NOT_PRODUCTION`, and `ALLOW_DATABASE_INTEGRATION_TESTS=true`, then run:
+
+```powershell
+npm --workspace backend run test:integration
+```
+
+The command fails before running tests unless the database URL and all safety opt-ins are present. The operator must verify that the URL points to a disposable test database before setting them.
+
 ## Major integration IDs
 
 - `API-001` Dashboard summary
@@ -87,9 +115,13 @@ Each service contains a `.env.example` file. Copy it to `.env` and set the value
 - `docs/architecture.md` — Mermaid diagrams and service relationship map
 - `backend/prisma/schema.prisma` — PostgreSQL schema using Prisma
 
-## Placeholder notice
+## Demo and integration status
 
-This scaffold intentionally contains mock implementations where actual model logic or automation is not yet ready. Any endpoint or page marked as a mock is clearly labelled in the code and docs.
+- Core store, product, inventory, dashboard and recommendation queries use PostgreSQL outside explicit demo mode.
+- `DEMO_MODE=true` enables in-memory fixtures only outside production, for local demonstration and unit tests.
+- Sales, inventory, receipt, promotion and waste ingestion have persistent backend paths with optional idempotency keys.
+- Demand forecast and spoilage prediction call the FastAPI contract and persist validated results. FastAPI model internals remain owned by Person 3.
+- Live Neon migrations, persistence and FastAPI calls require separately configured services; API success is not claimed until those integration tests run against the intended environment.
 
 ## Security notes
 

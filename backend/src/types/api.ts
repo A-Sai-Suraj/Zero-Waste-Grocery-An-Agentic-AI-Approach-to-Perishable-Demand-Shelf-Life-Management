@@ -1,4 +1,31 @@
 export type Role = 'Admin' | 'StoreManager' | 'Analyst';
+export type InventoryStatus = 'fresh' | 'warning' | 'critical';
+export type RecommendationActionType = 'replenish' | 'markdown' | 'transfer';
+export type RecommendationStatus = 'draft' | 'approved' | 'rejected' | 'executed' | 'failed';
+
+export interface StoreRecord {
+  id: string;
+  name: string;
+  region: string;
+  timezone: string;
+}
+
+export interface ProductRecord {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  unit: string;
+}
+
+export interface SalesRecord {
+  id: string;
+  storeId: string;
+  productId: string;
+  quantity: number;
+  revenue: number;
+  soldAt: string;
+}
 
 export interface DashboardSummary {
   totalStores: number;
@@ -9,14 +36,14 @@ export interface DashboardSummary {
   revenueTrend: number;
 }
 
-export interface InventoryBatchItem {
+export interface InventoryItem {
   id: string;
   productId: string;
   productName: string;
   storeId: string;
   quantity: number;
   expiryDate: string;
-  status: 'fresh' | 'warning' | 'critical';
+  status: InventoryStatus;
 }
 
 export interface DemandForecastItem {
@@ -34,17 +61,45 @@ export interface SpoilageRiskItem {
   daysUntilExpiry: number;
 }
 
-export interface RecommendationItem {
+export interface DecisionEvent {
+  actor: string;
+  decision: string;
+  at: string;
+}
+
+export interface RecommendationRecord {
   id: string;
-  type: 'replenish' | 'markdown' | 'transfer';
-  productId: string;
   storeId: string;
-  suggestedAction: string;
+  productId: string;
+  actionType: RecommendationActionType;
+  status: RecommendationStatus;
   confidence: number;
-  status: 'draft' | 'approved' | 'rejected';
+  quantity: number;
+  reason: string;
+  evidence: string;
+  createdAt: string;
+  updatedAt: string;
+  decisionHistory: DecisionEvent[];
 }
 
 export interface ApiErrorResponse {
   error: string;
   details?: Record<string, unknown>;
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationMeta;
+}
+
+export interface IngestionResult {
+  accepted: number;
+  rejected: number;
+  errors: Array<{ index: number; message: string; raw?: unknown }>;
 }

@@ -2,34 +2,23 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model RecommendationRevision {
+  id               String   @id @default(cuid())
+  recommendationId String
+  version          Int
+  actor            String
+  snapshot         Json
+  createdAt        DateTime @default(now())
+
+  recommendation Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+
+  @@unique([recommendationId, version])
+  @@index([recommendationId, createdAt])
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-enum UserRole {
-  ADMIN
-  STORE_MANAGER
-  ANALYST
-}
-
-enum RecommendationStatus {
-  DRAFT
-  APPROVED
-  REJECTED
-  EXECUTED
-}
-
-enum ApprovalDecision {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum ActionType {
-  REPLENISH
-  MARKDOWN
-  TRANSFER
 }
 
 enum InventoryStatus {
@@ -38,260 +27,312 @@ enum InventoryStatus {
   CRITICAL
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole
-  storeId   String?
-  store     Store?   @relation(fields: [storeId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum RecommendationStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  EXECUTED
+  FAILED
+}
 
-  approvals ManagerApproval[]
-  audits    AuditLog[]
+enum ActionType {
+  REPLENISH
+  MARKDOWN
+  TRANSFER
+}
 
-  @@index([storeId])
+enum PlannerDecision {
+  CREATED
+  MODIFIED
+  APPROVED
+  REJECTED
+  EXECUTED
+  FAILED
 }
 
 model Store {
-  id          String      @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
-  location    String
-  timezone    String      @default("UTC")
-  createdAt   DateTime    @default(now())
-  users       User[]
+  region      String?
+  timezone    String            @default("UTC")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   inventory   InventoryBatch[]
-  sales       SalesHistory[]
-  forecasts   DemandForecast[]
+  sales       SalesRecord[]
   promotions  Promotion[]
-  weather     WeatherEvent[]
+  waste       WasteRecord[]
+  forecasts   DemandForecast[]
   recommendations Recommendation[]
+  externalContext ExternalContext[]
+  receipts     Receipt[]
 
-  @@index([location])
-}
-
-model ProductCategory {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  products  Product[]
-  createdAt DateTime  @default(now())
+  @@index([name])
 }
 
 model Product {
-  id          String           @id @default(cuid())
-  sku         String           @unique
+  id          String            @id @default(cuid())
+  sku         String            @unique
   name        String
-  categoryId  String
-  category    ProductCategory  @relation(fields: [categoryId], references: [id])
+  category    String
   unit        String
-  createdAt   DateTime         @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   inventory   InventoryBatch[]
-  sales       SalesHistory[]
+  sales       SalesRecord[]
   forecasts   DemandForecast[]
-  recommendations RecommendationItem[]
-
-  @@index([categoryId])
+  recommendations RecommendationAction[]
+  proposals   Recommendation[]
+  waste       WasteRecord[]
+  promotions  Promotion[]
+  receiptLines ReceiptLine[]
 }
 
 model InventoryBatch {
-  id          String            @id @default(cuid())
+  id          String              @id @default(cuid())
+  sourceId    String?             @unique
   storeId     String
   productId   String
   quantity    Int
   expiryDate  DateTime
-  status      InventoryStatus   @default(FRESH)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  store       Store             @relation(fields: [storeId], references: [id])
-  product     Product           @relation(fields: [productId], references: [id])
-  spoilage    SpoilageRiskPrediction[]
+  status      InventoryStatus     @default(FRESH)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  store       Store               @relation(fields: [storeId], references: [id])
+  product     Product             @relation(fields: [productId], references: [id])
+  spoilage    SpoilageRisk[]
+  waste       WasteRecord[]
+  receiptLines ReceiptLine[]
 
   @@index([storeId, productId])
+  @@index([storeId, status, expiryDate])
   @@index([expiryDate])
 }
 
-model SalesHistory {
-  id          String   @id @default(cuid())
+model SalesRecord {
+  id          String    @id @default(cuid())
+  sourceId    String?   @unique
   storeId     String
   productId   String
-  soldQty     Int
-  revenue     Decimal  @db.Decimal(12, 2)
-  transactionDate DateTime
-  createdAt   DateTime @default(now())
+  quantity    Int
+  revenue     Decimal   @db.Decimal(12, 2)
+  soldAt      DateTime
+  createdAt   DateTime  @default(now())
 
-  store       Store    @relation(fields: [storeId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
+  store       Store     @relation(fields: [storeId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
 
-  @@index([storeId, transactionDate])
-  @@index([productId, transactionDate])
+  @@index([storeId, soldAt])
+  @@index([productId, soldAt])
 }
 
-model Supplier {
-  id          String          @id @default(cuid())
-  name        String
-  contactName String?
-  email       String?
-  phone       String?
-  deliveries  DeliveryRecord[]
-  createdAt   DateTime        @default(now())
-}
-
-model DeliveryRecord {
-  id          String   @id @default(cuid())
-  supplierId  String
-  storeId     String?
+model Receipt {
+  id          String     @id @default(cuid())
+  sourceId    String?    @unique
+  storeId     String
+  supplierName String?
   orderDate   DateTime
-  deliveryDate DateTime?
-  amount      Decimal  @db.Decimal(12, 2)
-  createdAt   DateTime @default(now())
+  deliveredAt DateTime?
+  totalCost   Decimal    @db.Decimal(12, 2)
+  createdAt   DateTime   @default(now())
 
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  store       Store     @relation(fields: [storeId], references: [id])
+  lines       ReceiptLine[]
 
-  @@index([supplierId, orderDate])
+  @@index([storeId, orderDate])
+}
+
+model ReceiptLine {
+  id          String    @id @default(cuid())
+  receiptId   String
+  productId   String
+  batchId     String?
+  quantity    Int
+  unitCost    Decimal   @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now())
+
+  receipt     Receipt        @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  product     Product        @relation(fields: [productId], references: [id])
+  batch       InventoryBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([receiptId])
+  @@index([productId])
 }
 
 model Promotion {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
+  sourceId    String?   @unique
   storeId     String
+  productId   String?
   name        String
-  discountPct Decimal  @db.Decimal(5, 2)
-  activeFrom  DateTime
-  activeTo    DateTime?
-  createdAt   DateTime @default(now())
+  discountPct Decimal   @db.Decimal(5, 2)
+  startsAt    DateTime
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
 
-  store       Store    @relation(fields: [storeId], references: [id])
+  store       Store     @relation(fields: [storeId], references: [id])
+  product     Product?  @relation(fields: [productId], references: [id])
 
-  @@index([storeId, activeFrom])
+  @@index([storeId, startsAt])
 }
 
-model WeatherEvent {
-  id           String   @id @default(cuid())
-  storeId      String
-  eventType    String
-  temperature  Decimal? @db.Decimal(5,2)
-  rainfallMm   Decimal? @db.Decimal(6,2)
-  eventDate    DateTime
-  createdAt    DateTime @default(now())
+model WasteRecord {
+  id          String    @id @default(cuid())
+  sourceId    String?   @unique
+  storeId     String
+  productId   String
+  batchId     String?
+  quantity    Int
+  reason      String
+  recordedAt  DateTime
+  createdAt   DateTime  @default(now())
 
-  store        Store    @relation(fields: [storeId], references: [id])
+  store       Store     @relation(fields: [storeId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+  batch       InventoryBatch? @relation(fields: [batchId], references: [id])
 
-  @@index([storeId, eventDate])
+  @@index([storeId, recordedAt])
+  @@index([productId, recordedAt])
+}
+
+model ExternalContext {
+  id          String    @id @default(cuid())
+  storeId     String
+  contextType String
+  eventName   String?
+  observedAt  DateTime
+  payload     Json?
+  createdAt   DateTime  @default(now())
+
+  store       Store     @relation(fields: [storeId], references: [id])
+
+  @@index([storeId, observedAt])
 }
 
 model DemandForecast {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   storeId     String
   productId   String
-  forecastQty Decimal  @db.Decimal(12,2)
-  confidence  Decimal  @db.Decimal(5,2)
-  forecastDate DateTime
+  forecastQty Decimal   @db.Decimal(12, 2)
+  confidence  Decimal   @db.Decimal(5, 2)
   horizonDays Int
-  createdAt   DateTime @default(now())
+  generatedAt DateTime
+  modelVersion String?
+  createdAt   DateTime  @default(now())
 
-  store       Store    @relation(fields: [storeId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
+  store       Store     @relation(fields: [storeId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
 
-  @@index([storeId, forecastDate])
-  @@index([productId, forecastDate])
+  @@index([storeId, generatedAt])
+  @@index([productId, generatedAt])
+  @@index([generatedAt])
 }
 
-model SpoilageRiskPrediction {
-  id          String   @id @default(cuid())
+model SpoilageRisk {
+  id          String        @id @default(cuid())
   batchId     String
-  riskScore   Decimal  @db.Decimal(5,2)
+  riskScore   Decimal       @db.Decimal(5, 2)
   riskLevel   String
   daysToExpiry Int
-  createdAt   DateTime @default(now())
+  generatedAt DateTime
+  modelVersion String?
+  createdAt   DateTime      @default(now())
 
   batch       InventoryBatch @relation(fields: [batchId], references: [id])
 
-  @@index([batchId, createdAt])
+  @@index([batchId, generatedAt])
 }
 
 model Recommendation {
-  id           String                 @id @default(cuid())
-  storeId      String
-  createdBy    String
-  status       RecommendationStatus   @default(DRAFT)
-  summary      String
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  id          String                 @id @default(cuid())
+  storeId     String
+  productId   String
+  actionType  ActionType
+  status      RecommendationStatus   @default(DRAFT)
+  confidence  Decimal                @db.Decimal(5, 2)
+  quantity    Int?
+  reason      String
+  evidence   String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
 
-  store        Store                 @relation(fields: [storeId], references: [id])
-  items        RecommendationItem[]
-  approvals    ManagerApproval[]
+  store       Store                  @relation(fields: [storeId], references: [id])
+  product     Product                @relation(fields: [productId], references: [id])
+  actions     RecommendationAction[]
+  decisions   PlannerDecisionRecord[]
+  execution   ExecutionRecord?
+  revisions   RecommendationRevision[]
+  auditLogs   AuditLog[]
 
   @@index([storeId, status])
+  @@index([createdAt])
 }
 
-model RecommendationItem {
-  id              String        @id @default(cuid())
-  recommendationId String
-  productId       String
-  actionType      ActionType
-  quantity        Int?
-  reason          String?
-  createdAt       DateTime      @default(now())
+model RecommendationAction {
+  id                  String    @id @default(cuid())
+  recommendationId    String
+  productId           String
+  actionType          ActionType
+  targetStoreId       String?
+  quantity            Int?
+  markdownPercent     Decimal?  @db.Decimal(5, 2)
+  createdAt           DateTime  @default(now())
 
-  recommendation  Recommendation @relation(fields: [recommendationId], references: [id])
-  product         Product       @relation(fields: [productId], references: [id])
-  proposedActions ProposedAction[]
+  recommendation      Recommendation @relation(fields: [recommendationId], references: [id])
+  product             Product        @relation(fields: [productId], references: [id])
 
   @@index([recommendationId])
 }
 
-model ProposedAction {
-  id               String   @id @default(cuid())
-  recommendationItemId String
-  actionType       ActionType
-  targetStoreId    String?
-  quantity         Int?
-  unitPrice        Decimal? @db.Decimal(10,2)
-  createdAt        DateTime @default(now())
-
-  item             RecommendationItem @relation(fields: [recommendationItemId], references: [id])
-
-  @@index([recommendationItemId])
-}
-
-model ManagerApproval {
-  id               String           @id @default(cuid())
+model PlannerDecisionRecord {
+  id               String       @id @default(cuid())
   recommendationId String
-  approverId       String
-  decision         ApprovalDecision
-  comments         String?
-  approvedAt       DateTime?
-  createdAt        DateTime         @default(now())
+  actor            String
+  decision         PlannerDecision
+  notes            String?
+  createdAt        DateTime     @default(now())
 
   recommendation   Recommendation @relation(fields: [recommendationId], references: [id])
-  approver         User            @relation(fields: [approverId], references: [id])
 
-  @@index([recommendationId])
+  @@index([recommendationId, createdAt])
+}
+
+model ExecutionRecord {
+  id               String       @id @default(cuid())
+  recommendationId String       @unique
+  status           String
+  payload          Json?
+  failureReason    String?
+  executedAt       DateTime     @default(now())
+
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id])
+
+  @@index([recommendationId, executedAt])
 }
 
 model AuditLog {
-  id           String   @id @default(cuid())
-  actorId      String?
-  entityType   String
-  entityId     String
-  action       String
-  details      Json
-  createdAt    DateTime @default(now())
+  id             String        @id @default(cuid())
+  recommendationId String?
+  actor          String
+  action         String
+  entityType     String
+  entityId       String
+  details        Json?
+  createdAt      DateTime      @default(now())
 
-  actor        User?    @relation(fields: [actorId], references: [id])
+  recommendation Recommendation? @relation(fields: [recommendationId], references: [id])
 
   @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
-model EvaluationResult {
-  id                String   @id @default(cuid())
-  evaluationDate    DateTime
-  metricName        String
-  metricValue       Decimal  @db.Decimal(10, 4)
-  baselineValue     Decimal? @db.Decimal(10, 4)
-  notes             String?
-  createdAt         DateTime @default(now())
+model EvaluationRun {
+  id          String    @id @default(cuid())
+  metricName  String
+  metricValue Decimal   @db.Decimal(10, 4)
+  baselineValue Decimal? @db.Decimal(10, 4)
+  notes       String?
+  generatedAt DateTime  @default(now())
 
-  @@index([evaluationDate, metricName])
+  @@index([metricName, generatedAt])
 }
