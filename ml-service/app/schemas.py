@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 
@@ -10,6 +10,8 @@ class ForecastRequest(BaseModel):
 
 
 class ForecastResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     store_id: str
     product_id: str
     forecast_qty: float
@@ -27,6 +29,8 @@ class SpoilageRequest(BaseModel):
 
 
 class SpoilageResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     batch_id: str
     risk_score: float
     risk_level: Literal['low', 'medium', 'high']

@@ -36,9 +36,6 @@ export function PageShell({ title, children }: { title: string; children: React.
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">ZeroWaste AI</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900">{title}</h2>
           </div>
-          <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-            Mock mode enabled
-          </div>
         </header>
         {children}
       </main>

@@ -20,6 +20,8 @@ The goal is not to implement the full business system yet. Instead, it implement
 
 ## Quick setup
 
+For a Windows-first setup walkthrough, environment variables, database configuration, and verified limitations, see [SETUP_GUIDE.md](./SETUP_GUIDE.md).
+
 ### 1) Install Node dependencies
 
 ```bash

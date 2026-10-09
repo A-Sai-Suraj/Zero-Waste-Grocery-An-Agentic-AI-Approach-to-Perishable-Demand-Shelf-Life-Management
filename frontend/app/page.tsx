@@ -1,25 +1,42 @@
 import Link from 'next/link';
 import { PageShell } from '@/components/page-shell';
+import { apiClient } from '@/lib/api-client';
 
-const summaryCards = [
-  { label: 'Stores monitored', value: '7', note: 'live grocery footprint' },
-  { label: 'Forecast confidence', value: '89%', note: 'rolling 14-day model' },
-  { label: 'Spoilage alerts', value: '23', note: 'requiring attention' },
-  { label: 'Projected waste', value: '128.4 kg', note: 'current forecast' },
-];
+export default async function HomePage() {
+  let summary;
+  let errorMessage: string | null = null;
+  try {
+    summary = await apiClient.getDashboardSummary();
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : 'Unable to load the live summary.';
+  }
 
-export default function HomePage() {
   return (
     <PageShell title="Overview">
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="card">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <p className="mt-3 text-3xl font-bold text-slate-900">{card.value}</p>
-            <p className="mt-2 text-xs text-slate-500">{card.note}</p>
+      {summary ? (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="card">
+            <p className="text-sm text-slate-500">Active stores</p>
+            <p className="mt-3 text-3xl font-bold text-slate-900">{summary.overview.activeStores}</p>
           </div>
-        ))}
-      </div>
+          <div className="card">
+            <p className="text-sm text-slate-500">Tracked products</p>
+            <p className="mt-3 text-3xl font-bold text-slate-900">{summary.overview.trackedProducts}</p>
+          </div>
+          <div className="card">
+            <p className="text-sm text-slate-500">Inventory units</p>
+            <p className="mt-3 text-3xl font-bold text-slate-900">{summary.overview.totalInventoryUnits}</p>
+          </div>
+          <div className="card">
+            <p className="text-sm text-slate-500">Near-expiry batches</p>
+            <p className="mt-3 text-3xl font-bold text-slate-900">{summary.alerts.nearExpiryBatchesCount}</p>
+          </div>
+        </div>
+      ) : (
+        <div role="alert" className="card border border-red-200 text-sm text-red-700">
+          Could not load the live overview: {errorMessage}
+        </div>
+      )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="card">
