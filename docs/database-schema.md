@@ -1,5 +1,7 @@
 # ZeroWaste AI Prisma ER Diagram and Relationship Table
 
+This document describes the intended Prisma data model in `backend/prisma/schema.prisma`. It is a schema blueprint, not evidence of a connected or populated database: this checkout has no checked-in migration history or seed script, and the current sample API services do not persist their responses to these models.
+
 ## Mermaid ER diagram
 
 ```mermaid

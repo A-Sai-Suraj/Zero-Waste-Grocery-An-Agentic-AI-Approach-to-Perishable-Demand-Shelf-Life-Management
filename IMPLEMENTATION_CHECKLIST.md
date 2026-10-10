@@ -1,5 +1,7 @@
 # ZeroWaste AI Implementation Checklist
 
+This is a forward-looking implementation plan. Unchecked items need implementation or end-to-end verification; scaffold routes, UI pages, and Prisma models alone do not establish that a workflow is complete. Current API paths and known integration gaps are documented in [INTEGRATION_MAP.md](./INTEGRATION_MAP.md).
+
 ## Phase 1 — foundation and contracts
 
 - [ ] Create root monorepo and workspace configuration
