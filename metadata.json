@@ -1,0 +1,6 @@
+{
+  "name": "ZeroWaste AI - Shelf-Life Intelligence",
+  "description": "Agentic AI Perishable Demand & Shelf-Life Management for simulated grocery store networks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
