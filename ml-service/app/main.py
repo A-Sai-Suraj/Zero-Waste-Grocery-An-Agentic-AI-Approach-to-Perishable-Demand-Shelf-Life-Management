@@ -1,18 +1,9 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas import ForecastRequest, ForecastResponse, SpoilageRequest, SpoilageResponse
 from app.core.mock_models import generate_forecast, generate_spoilage_risk
 
 app = FastAPI(title='ZeroWaste ML Service', version='0.1.0')
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['*'],
-    allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
-)
 
 
 @app.get('/health')

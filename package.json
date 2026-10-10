@@ -7,11 +7,13 @@
     "backend"
   ],
   "scripts": {
-    "dev:frontend": "npm --workspace frontend run dev",
+    "dev:frontend": "npm --prefix frontend/ui run dev",
+    "dev:frontend:next": "npm --workspace frontend run dev",
     "dev:backend": "npm --workspace backend run dev",
-    "build:frontend": "npm --workspace frontend run build",
+    "build:frontend": "npm --prefix frontend/ui run build",
     "build:backend": "npm --workspace backend run build",
     "test:backend": "npm --workspace backend run test",
-    "lint:frontend": "npm --workspace frontend run lint"
+    "lint:frontend": "npm --prefix frontend/ui run lint",
+    "typecheck:frontend": "npm --prefix frontend/ui run typecheck"
   }
 }
